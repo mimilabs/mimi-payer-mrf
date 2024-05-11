@@ -4,7 +4,7 @@
 
 # COMMAND ----------
 
-!pip install tqdm
+!pip install tqdm pycurl
 
 # COMMAND ----------
 
@@ -14,19 +14,7 @@ from tqdm import tqdm
 from itertools import product
 from dateutil.parser import parse
 import pandas as pd
-
-# COMMAND ----------
-
-def download_indexfile(url, filename, folder):
-    # NOTE the stream=True parameter below
-    with requests.get(url, stream=True) as r:
-        r.raise_for_status()
-        with open(f"{folder}/{filename}", 'wb') as f:
-            for chunk in r.iter_content(chunk_size=8192): 
-                # If you have chunk encoded response uncomment if
-                # and set chunk_size parameter to None.
-                #if chunk: 
-                f.write(chunk)
+import pycurl
 
 # COMMAND ----------
 
@@ -45,7 +33,7 @@ def download_indexfile(url, filename, folder):
 
 catalog = "mimi_ws_1"
 schema = "payermrf"
-table = "unc_toc"
+table = "unh_toc"
 volumepath = "/Volumes/mimi_ws_1/payermrf/src/unh/index"
 indexfile = sorted([x for x in Path(volumepath).glob("*")], key=lambda x: x.stem[-10:])[-1]
 
@@ -102,11 +90,3 @@ if len(index_data) > 0:
         .saveAsTable(f"{catalog}.{schema}.{table}"))
     index_data = []
     
-
-# COMMAND ----------
-
-spark.createDataFrame(pd.DataFrame(index_data, columns=index_header)).display()
-
-# COMMAND ----------
-
-
