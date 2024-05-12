@@ -12,12 +12,12 @@ import requests
 from pathlib import Path
 from tqdm import tqdm
 from itertools import product
-from dateutil.parser import parse
 import pandas as pd
 import pycurl
 import time
 import socket
-import urllib.parse
+from urllib import parse
+from urllib.parse import urlparse, parse_qs
 import re
 
 # COMMAND ----------
@@ -59,24 +59,32 @@ for url in urls:
 
 # COMMAND ----------
 
-for url in tqdm(urls_target):
-    tokens = url.split("&fn=")
-    if len(tokens) > 1:
-        filename = tokens[1]
-    else:
-        filename = url.split("/")[-1]
-    filename = re.sub(r'[^\x00-\x7F]+', '', filename)
+for url_raw in tqdm(urls_target):
+    parsed_url = urlparse(url_raw)
+    query_params = parse_qs(parsed_url.query)
+    fd = query_params["fd"][0]
+    fn = query_params["fn"][0]
+    fn_ascii = re.sub(r'[^\x00-\x7F]+', '', fn)
+    fn_pct_encoding = parse.quote(fn, safe="?=/:&")
+    url = url_raw
+    if fn_ascii != fn:
+        # For the file names with Unicode, use the direct URL
+        # As this URL uses "sig", we do not want to use this link for all the files; the sig may change over time
+        # And we hope UNH will fix the Unicode URLs; in theory, we shouldn't use Unicode in URL
+        url =  (f"https://mrfstorageprod.blob.core.windows.net/public-mrf/{fd}/{fn_pct_encoding}" +
+                "?sp=r&st=2024-03-26T04:49:21Z&se=2025-03-25T12:49:21Z&spr=https&sv=2022-11-02&sr=c&sig=M0sm1qeV6LULQexjwJYsuupRKv1UpgsQLzpfLtZbzkk%3D")
+        print(f"NOTE: Unicode file name changed to : {fn_ascii}")
 
-    if Path(f"{volumepath}/{filename}").exists():
+    if Path(f"{volumepath}/{fn_ascii}").exists():
         #print(f"{filename} already exists, skipping...")
         continue
     try:
-        download_file2(urllib.parse.quote(url, safe="?=/:&"), 
-                       filename, 
+        download_file2(url, 
+                       fn_ascii, 
                        volumepath)
         # if success, then break
     except UnicodeEncodeError as e:
-        print(f"Unicode Error: {filename}")
+        print(f"Unicode Error: {fn}")
     except (pycurl.error, socket.error) as e:
         print(f"Retrying..., due to {e}")
         time.sleep(retry_delay)
