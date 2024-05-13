@@ -97,7 +97,7 @@ for fpath in tqdm(Path("/Volumes/mimi_ws_1/payermrf/src/unh/gz/").glob("*allowed
                     tin_value = aa_object.get("tin", {}).get("value")
                     tin_value = str(int(tin_value) if isinstance(tin_value, float) else tin_value)
                     if tin_value[-2:] == ".0":
-                        tin_value = tin_value[-2:]
+                        tin_value = tin_value[:-2] # remove the trailing .0
                     
                     for payment in aa_object.get("payments", []):
                         allowed_amount = payment.get("allowed_amount")
@@ -145,8 +145,12 @@ if len(data) > 0:
 
 # COMMAND ----------
 
-files_with_errors
+print(files_with_errors)
 
 # COMMAND ----------
 
-
+for fpath in tqdm(Path("/Volumes/mimi_ws_1/payermrf/src/unh/gz/").glob("*allowed-amounts.json.gz")):
+    if fpath.stem in files_with_errors:
+        continue
+    dbutils.fs.mv(str(fpath), 
+        f"/Volumes/mimi_ws_1/payermrf/src/unh/archive_allowed_amounts/{fpath.name}")
